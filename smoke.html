@@ -42,7 +42,7 @@ frame.onload=async()=>{
     }
     Object.assign(world.p,{x:277,y:414,vx:0,vy:0});await wait(150);await press('KeyJ',60);await wait(100);assert(world.encore&&d.getElementById('fragments').textContent.includes('obudzony'),'Przebudzenie wieloryba');
     const saved=JSON.parse(w.localStorage.getItem('zlotodzwiek-v07'));assert(saved.encore&&saved.fragments.length===3,'Trwały finał');
-    d.getElementById('map-button').click();await wait(100);assert(d.getElementById('map-canvas').getAttribute('aria-label').includes('66'),'Mapa sekretów');d.getElementById('map-close').click();
+    d.getElementById('map-button').click();await wait(100);assert(d.getElementById('map-canvas').getAttribute('aria-label').includes('71'),'Mapa sekretów');d.getElementById('map-close').click();
     if(query.has('music')){
       const before=w.__toneStarts;d.getElementById('sound').click();world.enterRealm('s02');await wait(200);assert(w.__toneStarts>before,'Motyw muzyczny komnaty');
       d.getElementById('pause').click();assert(d.getElementById('pause').textContent==='Wznów','Pauza motywu');d.getElementById('pause').click();d.getElementById('sound').click();const muted=w.__toneStarts;world.enterRealm('s03');await wait(200);assert(w.__toneStarts===muted,'Wyciszona komnata generuje dźwięk');
@@ -60,7 +60,7 @@ frame.onload=async()=>{
       Object.assign(world.p,{x:554,y:414,vx:0,vy:0});await wait(500);await press('KeyD',80);assert(world.realmId===lock,'Odno ga');await solve();Object.assign(world.p,{x:554,y:414,vx:0,vy:0});await wait(500);await press('KeyD',80);assert(world.realmId===treasury,'Skarbiec');await pickup(relic);Object.assign(world.p,{x:515,y:414,vx:0,vy:0});await wait(500);await press('ArrowUp',60);assert(world.realmId===host,'Skrót');
     }
     world.enterRealm('r01',{x:515,y:414});await wait(500);await press('ArrowUp',60);assert(world.realmId==='s10','Sekret obu artefaktów');await pickup('lastTicket');assert(JSON.parse(w.localStorage.getItem('zlotodzwiek-v07')).relics.length===2,'Zapis artefaktów');
-    d.getElementById('map-button').click();await wait(100);assert(d.getElementById('map-canvas').getAttribute('aria-label').includes('66'),'Mapa');d.getElementById('map-close').click();
+    d.getElementById('map-button').click();await wait(100);assert(d.getElementById('map-canvas').getAttribute('aria-label').includes('71'),'Mapa');d.getElementById('map-close').click();
     if(query.has('clue')){world.enterRealm('r13');await wait(100);}
     assert(d.documentElement.scrollWidth<=w.innerWidth,'Układ mobilny');
   }
@@ -76,22 +76,29 @@ frame.onload=async()=>{
     for(const id of ['s15','s16','s17','s18']){Object.assign(world.p,{x:554,y:414,vx:0,vy:0});await wait(500);await press('KeyD',80);assert(world.realmId===id,'Pokój '+id);if(id==='s15'){const item=world.items[0];Object.assign(world.p,{x:item.x,y:item.y-6,vx:0,vy:0});await wait(200);assert(world.journal.includes('flowPlan'),'Plan instalacji');}if(world.def.puzzle)await solve();}
     const reward=world.items[0];Object.assign(world.p,{x:reward.x,y:reward.y-6,vx:0,vy:0});await wait(200);assert(reward.taken,'Skarbiec');const saved=JSON.parse(w.localStorage.getItem('zlotodzwiek-v07'));assert(saved.puzzles.beacon.solved&&saved.noteStats.collected===world.noteCount,'Zapis i nuty');assert(d.getElementById('objectives').textContent.includes('✓ Zapal latarnię'),'Lista celów');
   }
+  if(query.has('prism')){
+    for(const id of ['s19','s20','s21','s22','s23']){
+      Object.assign(world.p,{x:554,y:414,vx:0,vy:0,climbing:false,ladder:null});await wait(500);await press('KeyD',80);assert(world.realmId===id,'Ogród '+id);
+      if(world.items[0]){const item=world.items[0];Object.assign(world.p,{x:item.x,y:item.y-6,vx:0,vy:0});await wait(200);assert(item.taken,'Próbka lub skarb '+id);}
+      if(world.def.puzzle){const def=world.def.puzzle;for(const i of [0,1,2]){Object.assign(world.p,{x:def.controls[i]-11,y:414,vx:0,vy:0,climbing:false,ladder:null});await wait(80);await press('ArrowUp',50);await wait(50);}assert(world.puzzleState().solved,'Mieszanka '+id);}
+    }assert(JSON.parse(w.localStorage.getItem('zlotodzwiek-v07')).puzzles.sunFilter.solved,'Zapis szkła');
+  }
   if(query.has('feedback')){
     const cv=d.createElement('canvas');cv.width=960;cv.height=540;const c=cv.getContext('2d');
     for(const def of w.ZDAdventures.definitions){const testWorld=new w.ZD.World();testWorld.enterRealm(def.host);testWorld.journal=def.requiresClue?[def.requiresClue]:[];testWorld.time=2;for(const id of def.requiresPuzzles||[])testWorld.puzzles[id]={solved:true};
       const draw=()=>{c.clearRect(0,0,960,540);w.ZDAdventureArt.mechanisms(c,testWorld,2);return cv.toDataURL();};const before=draw();testWorld.pressPuzzle(0);assert(draw()!==before,'Brak wizualnej reakcji '+def.id);
-      testWorld.puzzles={};for(const id of def.requiresPuzzles||[])testWorld.puzzles[id]={solved:true};for(const i of def.type==='sequence'?def.target:def.type==='dials'?[0,0,1,1]:def.type==='mirrors'?[0,1,2]:def.type==='valves'?def.target.flatMap((v,i)=>Array(v).fill(i)):def.type==='tiles'?[0,1]:[0,2])testWorld.pressPuzzle(i);testWorld.puzzleState().flash=0;assert(testWorld.puzzleState().solved&&draw()!==before,'Brak trwałego oznaczenia '+def.id);
+      testWorld.puzzles={};for(const id of def.requiresPuzzles||[])testWorld.puzzles[id]={solved:true};for(const i of def.type==='sequence'?def.target:def.type==='dials'?[0,0,1,1]:def.type==='mirrors'?[0,1,2]:def.type==='valves'?def.target.flatMap((v,i)=>Array(v).fill(i)):def.type==='tiles'?[0,1]:def.type==='filters'?[0,1,2]:[0,2])testWorld.pressPuzzle(i);testWorld.puzzleState().flash=0;assert(testWorld.puzzleState().solved&&draw()!==before,'Brak trwałego oznaczenia '+def.id);
       if(def.type==='sequence'){testWorld.puzzles={};testWorld.pressPuzzle(def.target[0]);testWorld.puzzleState().flash=0;assert(draw()!==before,'Niewidoczna sekwencja '+def.id);}
     }
   }
   if(query.has('map'))d.getElementById('map-button').click();
-  assert(errors.length===0,errors.join('; '));out.textContent='PASS: start, drabiny, mapa, zdobycie, ekwipunek, audio WAV, przejście, pauza; '+(query.has('adventure')?'3 zagadki bez audio, portale, fragmenty, finał, zapis i mapa 66 komnat; ':'')+(query.has('music')?'motyw komnaty, wyciszenie i powrót po zakończeniu; ':'')+(query.has('expedition')?'4 nowe zagadki, dziennik, artefakty, skróty i końcowy sekret; ':'')+(query.has('feedback')?'reakcja graficzna i trwały wynik wszystkich 12 zagadek; ':'')+(query.has('clockwork')?'warsztat, manometry, mozaika, ogród, nagroda i zapis; ':'')+(query.has('linked')?'połączone instalacje, cele i licznik nut; ':'')+'brak błędów JS';document.title='PASS';
+  assert(errors.length===0,errors.join('; '));out.textContent='PASS: start, drabiny, mapa, zdobycie, ekwipunek, audio WAV, przejście, pauza; '+(query.has('adventure')?'3 zagadki bez audio, portale, fragmenty, finał, zapis i mapa 71 komnat; ':'')+(query.has('music')?'motyw komnaty, wyciszenie i powrót po zakończeniu; ':'')+(query.has('expedition')?'4 nowe zagadki, dziennik, artefakty, skróty i końcowy sekret; ':'')+(query.has('feedback')?'reakcja graficzna i trwały wynik wszystkich 14 zagadek; ':'')+(query.has('clockwork')?'warsztat, manometry, mozaika, ogród, nagroda i zapis; ':'')+(query.has('linked')?'połączone instalacje, cele i licznik nut; ':'')+(query.has('prism')?'próbki, mieszanie barw, kryształowy ogród i zapis; ':'')+'brak błędów JS';document.title='PASS';
  }catch(e){out.textContent='FAIL: '+e.message;document.title='FAIL';}
 };
 fetch('index.html').then(r=>r.text()).then(html=>{
  const harness='<script>window.requestAnimationFrame=cb=>setTimeout(()=>cb(performance.now()),16);<\/script>';
  const inspect='<script>window.__toneStarts=0;const toneStart=OscillatorNode.prototype.start;OscillatorNode.prototype.start=function(...a){window.__toneStarts++;return toneStart.apply(this,a)};window.__saxStarts=0;window.__saxStops=0;const os=AudioBufferSourceNode.prototype.start,ot=AudioBufferSourceNode.prototype.stop;AudioBufferSourceNode.prototype.start=function(...a){window.__saxStarts++;return os.apply(this,a)};AudioBufferSourceNode.prototype.stop=function(...a){window.__saxStops++;return ot.apply(this,a)};const OriginalWorld=ZD.World;ZD.World=class extends OriginalWorld{constructor(){super();window.__testWorld=this;}};<\/script>';
  const prefs='<script>localStorage.removeItem("zlotodzwiek-sound");<\/script>';
- frame.srcdoc=html.replace('<head>','<head>'+harness).replace('<script src="game.js?v=18">',inspect+prefs+'<script src="game.js?v=18">');
+ frame.srcdoc=html.replace('<head>','<head>'+harness).replace('<script src="game.js?v=19">',inspect+prefs+'<script src="game.js?v=19">');
 });
 </script></html>

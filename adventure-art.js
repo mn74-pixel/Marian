@@ -25,7 +25,7 @@
   }
   function background(c,world,t){
     const kind=world.def.wonder;
-    if(['glass','aurora','tide','reef','train','workshop','aviary'].includes(kind)){ZDExpeditionArt.background(c,world,t);return;}
+    if(['glass','aurora','tide','reef','train','workshop','aviary','prism'].includes(kind)){ZDExpeditionArt.background(c,world,t);return;}
     c.save();c.fillStyle=grad(c,0,0,0,540,kind==='bloom'?'#143854':'#101a3c',kind==='bloom'?'#33776c':kind==='orbit'?'#4b365f':'#224564');c.fillRect(0,0,960,540);
     for(let i=0;i<70;i++){const x=(i*137+31)%960,y=(i*79+47)%470;const a=.25+(Math.sin(t*.7+i)+1)*.15;c.globalAlpha=a;star(c,x,y,i%7?1:2.5,'#cceddf');}c.globalAlpha=1;
     if(kind==='bloom'){
@@ -60,7 +60,7 @@
         if(state.solved){text(c,'✓',x,365,15,'#a9ffcc');}
         box(c,x-15,436,30,14,3,grad(c,x,436,0,14,'#b49b7c','#435569'),ink);
         if(lit)glow(c,x,410,34,color+'50');
-        if(['mirrors','weights','valves','tiles'].includes(def.type)){ZDExpeditionArt.control(c,def,state,i);}
+        if(['mirrors','weights','valves','tiles','filters'].includes(def.type)){ZDExpeditionArt.control(c,def,state,i);}
         else if(def.type==='sequence'){
           line(c,[[x-13,436],[x-13,390],[x+13,390],[x+13,436]],state.solved?'#9df3bc':'#d1c598',3);
           c.save();c.translate(x,396);c.rotate(pressed?Math.sin((.7-state.flash)*28)*state.flash*.35:0);c.translate(-x,-396);
@@ -82,6 +82,14 @@
         for(let j=0;j<n;j++){const x=start+j*34,filled=j<state.progress;ellipse(c,x,339,11,11,filled?'#537f73':'#263a50',filled?'#c7ffb8':'#718394');if(filled)glyph(c,def.target[j],x,339,7,ZDAdventures.colors[def.target[j]]);else text(c,known?'·':'?',x,342,12);}
         text(c,state.solved?'MELODIA PRZYJĘTA ✓':`ZAGRANE ${state.progress}/${n}`,288,317,9,state.solved?'#b7ffd2':'#ffe4ac');
       }
+    }
+    if(def?.type==='filters'){
+      const state=world.puzzleState(),colors=['#ff918d','#88f6af','#8dc7ff'];
+      for(let i=0;i<3;i++){const x=def.controls[i],on=state.values[i];ellipse(c,x,240,12,12,on?colors[i]:'#24384d','#b6c7bd');text(c,['R','G','B'][i],x,244,9,on?'#142a41':'#bfced4');line(c,[[x,253],[285,290]],on?colors[i]+'bb':'#5a6c7933',on?3:1);}
+      const mixture=state.values.some(Boolean)?ZDAdventures.mixLight(state.values):'#192b40',target=ZDAdventures.mixLight(def.target);
+      glow(c,285,292,40,mixture+'24');ellipse(c,285,292,23,23,mixture,'#dce8c1');text(c,'MIESZANKA',285,328,8);
+      ellipse(c,385,292,27,27,target+'55',target);ellipse(c,385,292,17,17,state.solved?target:'#1c3147',target);text(c,state.solved?'SZKŁO ✓':'CEL',385,332,9);
+      line(c,[[310,292],[356,292]],mixture,4);line(c,[[414,292],[490,292],[490,415],[562,415]],state.solved?'#b3fadb':'#496675',3);
     }
     if(def?.type==='mirrors'){
       const state=world.puzzleState(),trace=ZDAdventures.traceMirrors(state.values),xy=([x,y])=>[65+x*65,205+y*23];

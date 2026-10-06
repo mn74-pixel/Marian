@@ -87,6 +87,8 @@
         if(index===def.target[state.progress])state.progress++;
         else{state.progress=index===def.target[0]?1:0;this.emit('puzzleRetry');}
         state.solved=state.progress===def.target.length;
+      }else if(def.type==='filters'){
+        state.values[index]=1-state.values[index];state.solved=state.values.every((v,i)=>v===def.target[i]);
       }else if(def.type==='valves'){
         state.values[index]=(state.values[index]+1)%4;state.solved=state.values.every((v,i)=>v===def.target[i]);
       }else if(def.type==='tiles'){

@@ -79,7 +79,7 @@
     world.acknowledge();$('discovery').hidden=true;modal=null;clearInput();running=true;resetClock();save();canvas.focus();message('SAKSOFON ZDOBYTY ✓ — widzisz go w ekwipunku. J / ♫: zagraj.');
   }
   function drawMap(){
-    const c=$('map-canvas').getContext('2d');c.clearRect(0,0,640,650);c.fillStyle='#172534';c.fillRect(0,0,640,650);
+    const c=$('map-canvas').getContext('2d');c.clearRect(0,0,640,720);c.fillStyle='#172534';c.fillRect(0,0,640,720);
     for(const def of Object.values(ZD.realms).filter(d=>!d.secret)){
       const visited=!!world.realmStates[def.id],x=25+def.col*77,y=20+def.row*52;
       if(!visited)continue;
@@ -165,7 +165,7 @@
     const pd=world.def.puzzle,ps=pd&&world.puzzleState();$('puzzle-help').hidden=!pd;
     if(pd){
       const known=!pd.requiresClue||world.journal.includes(pd.requiresClue);
-      const detail=ps.solved?'Rozwiązane ✓ — prawe przejście otwarte.':!known?'Brakuje zapisu z poprzedniego pokoju.':pd.type==='sequence'?`Zagrane: ${pd.target.slice(0,ps.progress).map(i=>ZDAdventures.symbols[i]).join(' → ')||'—'} (${ps.progress}/${pd.target.length})`:['dials','tiles'].includes(pd.type)?`Teraz: ${ps.values.map(i=>ZDAdventures.symbols[i]).join(' · ')}`:pd.type==='valves'?`Ciśnienie: ${ps.values.join(' · ')}`:pd.type==='mirrors'?`Lustra: ${ps.values.map(v=>v?'\\':'/').join(' · ')}`:pd.type==='weights'?`Na szali: ${ps.values.reduce((sum,v,i)=>sum+v*pd.weights[i],0)} / ${pd.mass}`:`Gwiazdy: ${ps.values.map(v=>v?'✦':'○').join(' · ')}`;
+      const detail=ps.solved?'Rozwiązane ✓ — prawe przejście otwarte.':!known?'Brakuje zapisu z poprzedniego pokoju.':pd.type==='sequence'?`Zagrane: ${pd.target.slice(0,ps.progress).map(i=>ZDAdventures.symbols[i]).join(' → ')||'—'} (${ps.progress}/${pd.target.length})`:['dials','tiles'].includes(pd.type)?`Teraz: ${ps.values.map(i=>ZDAdventures.symbols[i]).join(' · ')}`:pd.type==='filters'?`Źródła R / G / B: ${ps.values.map(v=>v?'wł.':'wył.').join(' · ')}`:pd.type==='valves'?`Ciśnienie: ${ps.values.join(' · ')}`:pd.type==='mirrors'?`Lustra: ${ps.values.map(v=>v?'\\':'/').join(' · ')}`:pd.type==='weights'?`Na szali: ${ps.values.reduce((sum,v,i)=>sum+v*pd.weights[i],0)} / ${pd.mass}`:`Gwiazdy: ${ps.values.map(v=>v?'✦':'○').join(' · ')}`;
       const reaction=ps.flash>0&&ps.last>=0?` · Naciśnięto: ${pd.type==='sequence'?ZDAdventures.symbols[ps.last]:ps.last+1}`:'';const text=pd.clue+' '+detail+reaction;if(text!==lastPuzzleText){$('puzzle-clue').textContent=pd.clue;$('puzzle-state').textContent=detail+reaction;lastPuzzleText=text;}
     }
     const board=pd&&['mirrors','weights'].includes(pd.type);$('puzzle-board').hidden=!board;if(board)ZDExpeditionArt.board($('puzzle-board').getContext('2d'),world);
