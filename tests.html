@@ -1,0 +1,158 @@
+<!doctype html><html lang="pl"><meta charset="utf-8"><title>Testy 0.12</title><pre id="result">RUNNING</pre><script src="realms.js"></script><script src="adventures.js"></script><script src="expeditions.js"></script><script src="clockwork.js"></script><script src="linked-depths.js"></script><script src="room-looks.js"></script><script src="engine.js"></script><script>
+const results=[];
+function test(name,fn){try{fn();results.push('PASS '+name);}catch(e){results.push('FAIL '+name+': '+e.message);}}
+function assert(v,m='Warunek niespełniony'){if(!v)throw Error(m);}
+function frames(w,n,input={}){for(let i=0;i<n;i++)w.step(1/120,input);}
+function climbRoute(w,shelf){
+  const build=(target,seen=new Set())=>{
+    assert(!seen.has(target),'Cykl drogi do podestu');seen.add(target);
+    const l=w.ladders.find(l=>!l.to&&l.top===target.y&&l.x>=target.x&&l.x<=target.x+target.w);
+    assert(l,'Brak drogi do podestu '+w.realmId);
+    if(l.bottom===450)return [l];
+    const base=w.platforms.find(p=>p.y===l.bottom&&l.x>=p.x&&l.x<=p.x+p.w);
+    assert(base,'Brak podstawy drabiny');return [...build(base,seen),l];
+  };
+  const route=build(shelf);Object.assign(w.p,{x:route[0].x-11,y:414,vx:0,vy:0});frames(w,2);
+  for(const l of route){
+    for(let i=0;i<300&&Math.abs(w.p.x+11-l.x)>2;i++)frames(w,1,{right:w.p.x+11<l.x,left:w.p.x+11>l.x});
+    frames(w,15);
+    for(let i=0;i<450&&!(w.p.ground&&Math.abs(w.p.y+36-l.top)<.1);i++)frames(w,1,{up:true});
+    frames(w,1);assert(w.p.ground&&Math.abs(w.p.y+36-l.top)<.1,'Nieosiągalny podest '+w.realmId+' x='+l.x);
+  }
+}
+function collect(w,item){
+  const shelf=w.platforms.find(p=>p.h===18&&item.x>=p.x&&item.x+item.w<=p.x+p.w&&Math.abs(item.y+item.h-p.y)<15);
+  assert(shelf,'Brak podestu dla '+item.id);climbRoute(w,shelf);
+  for(let i=0;i<200&&!item.taken;i++)frames(w,1,{right:item.x>w.p.x,left:item.x<w.p.x});
+  assert(item.taken,'Nieosiągalny przedmiot '+item.id);assert(w.deaths===0,'Pułapka blokuje przedmiot '+item.id);
+}
+test('48 głównych komnat i 18 sekretów, 6 pięter, różne układy',()=>{assert(Object.keys(ZD.realms).length===66);assert(new Set(Object.values(ZD.realms).filter(r=>!r.secret).map(r=>JSON.stringify(r.platforms))).size===48);assert(Object.values(ZD.realms).every(r=>!r.name&&!r.subtitle));});
+test('Graf: wszystkie komnaty osiągalne, każde przejście ma powrót',()=>{
+  const seen=new Set(['r00']),queue=['r00'],opposite={left:'right',right:'left',up:'down',down:'up'};
+  while(queue.length){const id=queue.shift();for(const [direction,link] of Object.entries(ZD.realms[id].links)){assert(ZD.realms[link.to].links[opposite[direction]]?.to===id,'Brak powrotu '+id);if(!seen.has(link.to)){seen.add(link.to);queue.push(link.to);}}}assert(seen.size===48);
+});
+test('Klucze nie są za własnymi zamkami; możliwe zdobycie pieczęci i dotarcie do końca',()=>{
+  const seen=new Set(['r00']),keys=new Set(),items=new Set();let changed=true;
+  while(changed){changed=false;for(const id of [...seen]){for(const i of ZD.realms[id].items){items.add(i.id);if(i.kind==='key')keys.add(i.id);}for(const l of Object.values(ZD.realms[id].links)){if((!l.requires||keys.has(l.requires))&&!seen.has(l.to)){seen.add(l.to);changed=true;}}}}
+  assert(seen.size===48&&keys.size===5&&['seal1','seal3','seal5'].every(i=>items.has(i)));
+});
+test('Początek jest bez ostrzału i bez zabójczych pułapek',()=>{for(let n=0;n<4;n++){const r=ZD.realms['r0'+n];assert(!r.spikes.length&&!r.patrols.length&&!r.barriers.length);assert(r.platforms.some(p=>p.y===450&&p.w===576));}assert(Object.values(ZD.realms).every(r=>!r.turrets));});
+test('Skok, wcześniejsze puszczenie i bufor lądowania',()=>{const a=new ZD.World(),b=new ZD.World();frames(a,10);frames(b,10);frames(a,20,{jump:true});frames(b,1,{jump:true});frames(b,19);assert(a.p.y<b.p.y-30);const w=new ZD.World();w.p.y=408;w.p.vy=200;frames(w,8,{jump:true});assert(w.p.vy<0);});
+test('Drabina w obie strony, zatrzymanie, bez teleportowania przez podest',()=>{
+ const w=new ZD.World(),l=w.ladders[0];w.p.x=l.x-11;frames(w,3);frames(w,40,{up:true});const y=w.p.y;frames(w,40);assert(w.p.climbing&&w.p.y===y);frames(w,200,{up:true});assert(w.p.ground&&w.p.y===l.top-36);frames(w,200,{down:true});assert(w.p.ground&&w.p.y===414);
+ frames(w,70,{up:true});const x=w.p.x;frames(w,1,{jump:true});assert(!w.p.climbing&&w.p.x===x&&w.p.vy<0);
+});
+test('Zamknięty szyb blokuje zejście, klucz otwiera, powrót nie wymaga klucza',()=>{
+ const w=new ZD.World(),l=w.ladders.find(l=>l.direction==='down');w.p.x=l.x-11;frames(w,3);frames(w,180,{down:true});assert(w.realmId==='r00'&&!w.p.climbing);w.inventory.push('key0');frames(w,160,{down:true});assert(w.realmId==='r08');frames(w,340,{up:true});assert(w.realmId==='r00');
+});
+test('Znalezisko wymaga interakcji i zatrzymuje świat aż do potwierdzenia',()=>{
+ const w=new ZD.World();w.enterRealm('r02');const cache=w.def.saxCache,l=w.ladders.find(l=>l.top===cache.y+cache.h);w.p.x=l.x-11;frames(w,3);frames(w,240,{up:true});frames(w,1);
+ for(let i=0;i<160&&w.p.x<cache.x-13;i++)frames(w,1,{right:true});frames(w,30);assert(!w.saxFound);frames(w,1,{up:true});assert(w.saxFound&&w.discovery?.kind==='sax');const x=w.p.x,time=w.time;frames(w,1000,{right:true});assert(w.p.x===x&&w.time===time);w.acknowledge();frames(w,3,{right:true});assert(w.p.x>x&&w.saxAcknowledged);
+});
+test('Otwarty futerał nigdy nie przyznaje nagrody drugi raz',()=>{const w=new ZD.World();w.enterRealm('r02',{x:430,y:244});frames(w,10);frames(w,1,{up:true});assert(w.saxFound);w.acknowledge();const score=w.score;frames(w,1);frames(w,1,{up:true});assert(w.score===score&&!w.discovery);});
+test('Niepotwierdzone znalezisko przetrwa odświeżenie, ruch go nie zamyka',()=>{const w=new ZD.World();w.saxFound=true;const copy=new ZD.World();assert(copy.restore(w.snapshot())&&copy.discovery&&copy.saxFound);frames(copy,240,{right:true});assert(copy.discovery);copy.acknowledge();assert(!copy.discovery&&copy.saxAcknowledged);});
+test('Starszy zdobyty saksofon jest pokazany jako odzyskany, a stary zapis pozostaje zgodny',()=>{const w=new ZD.World();assert(w.importLegacy({version:2,saxFound:true,score:900})&&w.discovery.recovered&&w.saxFound&&w.realmId==='r00');});
+test('Granie tylko po zdobyciu; ruch, zmiana komnaty i porażka chowają instrument',()=>{const w=new ZD.World();frames(w,10);frames(w,1,{sax:true});assert(!w.playingSax);w.saxFound=true;frames(w,1);frames(w,1,{sax:true});assert(w.playingSax);frames(w,1,{right:true});assert(!w.playingSax);w.playingSax=true;w.enterRealm('r01');assert(!w.playingSax&&w.saxFound);w.playingSax=true;w.die();assert(!w.playingSax&&w.saxFound);});
+test('Zapis przechowuje mapę, ekwipunek, nuty i pieczęcie bez odnawiania nagród',()=>{const w=new ZD.World();w.notes[0].taken=true;w.inventory=['key0'];w.seals=['seal1'];w.enterRealm('r04');const score=w.score;w.enterRealm('r00');assert(w.notes[0].taken&&w.score===score);const copy=new ZD.World();assert(copy.restore(JSON.parse(JSON.stringify(w.snapshot())))&&copy.inventory[0]==='key0'&&copy.seals[0]==='seal1'&&copy.realmStates.r04&&copy.notes.some(n=>n.taken));});
+test('Niepoprawny zapis nie zatruwa świata ani liczników',()=>{const w=new ZD.World();assert(!w.restore({version:3,realmId:'__proto__'}));assert(w.restore({version:3,realmId:'r00',score:Infinity,time:'bad',inventory:['invalid','key0','key0']}));assert(w.score===0&&w.time===0&&w.inventory.length===1);});
+test('Wyjście wymaga trzech pieczęci i saksofonu; nie wygrywa przez samo wejście',()=>{const w=new ZD.World();w.enterRealm('r47',{x:520,y:414});frames(w,1,{up:true});assert(!w.won);w.saxFound=true;w.seals=['seal1','seal3','seal5'];frames(w,100);assert(!w.won);frames(w,1,{up:true});assert(w.won);});
+test('Zapora ma okres bezpieczny i ostrzeżenie przed aktywacją',()=>{const w=new ZD.World();w.enterRealm('r16');let active=false,warning=false,safe=false;for(let i=0;i<900;i++){frames(w,1);const b=w.barriers[0];active||=b.active;warning||=b.warning;safe||=!b.active;}assert(active&&warning&&safe&&w.deaths===0);});
+test('Wszystkie przedmioty osiągalne wieloetapowymi trasami po drabinach i linach',()=>{for(const def of Object.values(ZD.realms))for(const item of def.items){const w=new ZD.World();w.enterRealm(def.id);collect(w,w.items.find(i=>i.id===item.id));}});
+test('Szyby w obie strony są fizycznie przejezdne dla każdej pary',()=>{for(const [row,col] of ZDCampaign.shafts){const id='r'+String(row*8+col).padStart(2,'0'),w=new ZD.World();w.enterRealm(id);w.inventory=['key'+row];const l=w.ladders.find(l=>l.direction==='down');w.p.x=l.x-11;frames(w,5);frames(w,140,{down:true});assert(w.realmId===l.to,'Zejście '+id);frames(w,360,{up:true});assert(w.realmId===id&&w.deaths===0,'Powrót '+id);}});
+test('Każdy stały podest jest osiągalny fizycznie, również przez krótkie drabiny',()=>{
+ for(const def of Object.values(ZD.realms))for(const shelf of def.platforms.filter(s=>s.h===18&&!s.crumble)){
+  const w=new ZD.World();w.enterRealm(def.id);climbRoute(w,w.platforms.find(s=>s.x===shelf.x&&s.y===shelf.y));assert(!w.deaths,'Porażka podczas wspinania '+def.id);
+ }
+});
+test('Lina: chwyt, zatrzymanie, szybsze zejście i odskok',()=>{
+ const w=new ZD.World();w.enterRealm('r03');const l=w.ladders.find(l=>l.kind==='rope');w.p.x=l.x-11;frames(w,3);frames(w,80,{up:true});assert(w.p.climbing&&w.p.ladder.kind==='rope');const y=w.p.y;frames(w,30);assert(w.p.y===y);frames(w,30,{down:true});assert(Math.abs(w.p.y-y-37.5)<1);frames(w,1,{jump:true,left:true});assert(!w.p.climbing&&w.p.vy<0);frames(w,30,{left:true,jump:true});assert(w.p.x<l.x-20);
+});
+test('Most ostrzega, zapada się, odnawia i nie odnawia wewnątrz postaci',()=>{
+ const w=new ZD.World(),def=Object.values(ZD.realms).find(r=>r.platforms.some(s=>s.crumble));w.enterRealm(def.id);const b=w.platforms.find(s=>s.crumble);
+ Object.assign(w.p,{x:b.x+40,y:b.y-36,vx:0,vy:0,ground:true});frames(w,60);assert(b.crumbleTime>0&&!b.missing);frames(w,85);assert(b.missing>0&&w.p.y>b.y-36);frames(w,50);assert(w.p.ground&&!w.deaths);
+ Object.assign(w.p,{x:b.x+40,y:b.y-10});b.missing=.001;frames(w,1);assert(b.missing>0);Object.assign(w.p,{x:40,y:414,vy:0});frames(w,370);assert(!b.missing&&!b.crumbleTime);
+});
+test('Zapis nie utrwala zapadniętych desek ani nie resetuje ekwipunku',()=>{
+ const w=new ZD.World(),def=Object.values(ZD.realms).find(r=>r.platforms.some(s=>s.crumble));w.enterRealm(def.id);w.platforms.find(s=>s.crumble).missing=2;w.saxFound=true;w.saxAcknowledged=true;w.inventory=['key0'];const other=new ZD.World();assert(other.restore(w.snapshot()));assert(other.saxFound&&other.inventory.includes('key0')&&!other.platforms.find(s=>s.crumble).missing);
+});
+function pressAt(w,index){
+ const x=w.def.puzzle.controls[index];Object.assign(w.p,{x:x-11,y:414,vx:0,vy:0,ground:true,climbing:false,ladder:null});frames(w,2);frames(w,1,{up:true});frames(w,1);
+}
+function solvePuzzle(w){const def=w.def.puzzle;for(const id of def.requiresPuzzles||[])w.puzzles[id]={solved:true};for(const i of def.type==='sequence'?def.target:def.type==='dials'?[0,0,1,1]:def.type==='mirrors'?[0,1,2]:def.type==='valves'?def.target.flatMap((v,i)=>Array(v).fill(i)):def.type==='tiles'?[0,1]:[0,2])pressAt(w,i);assert(w.puzzleState().solved,'Nierozwiązana zagadka '+def.id);}
+test('Dzwonki: zły porządek nie odbiera punktów; przytrzymanie nie powtarza dźwięku',()=>{
+ const w=new ZD.World();w.enterRealm('r06');w.notes.forEach(n=>n.taken=true);const score=w.score;pressAt(w,1);assert(w.puzzleState().progress===0&&w.score===score&&!w.deaths);
+ Object.assign(w.p,{x:w.def.puzzle.controls[2]-11,y:414,vx:0,vy:0});frames(w,1);frames(w,120,{up:true});assert(w.puzzleState().progress===1);frames(w,1);pressAt(w,0);pressAt(w,1);assert(w.puzzleState().solved&&w.score===score+600);pressAt(w,1);assert(w.score===score+600);
+});
+test('Sprzężone krążki i gwiazdy mają rozwiązania bez czasu i kary',()=>{
+ for(const id of ['r22','r38']){const w=new ZD.World();w.enterRealm(id);pressAt(w,1);assert(w.puzzleState().values.filter(v=>v!==0).length===2);w.enterRealm('r00');w.enterRealm(id);assert(w.puzzleState().values.filter(v=>v!==0).length===2);w.puzzles={};solvePuzzle(w);const time=w.time;frames(w,900);assert(w.puzzleState().solved&&!w.deaths&&w.time>time);}
+});
+test('Portale wymagają zagadki, prowadzą do trzech nowych komnat i pozwalają wrócić',()=>{
+ for(const def of ZDAdventures.definitions.slice(0,3)){const w=new ZD.World();w.enterRealm(def.host,{x:515,y:414});frames(w,65);frames(w,1,{up:true});assert(w.realmId===def.host);frames(w,1);solvePuzzle(w);
+ Object.assign(w.p,{x:515,y:414,vx:0,vy:0});frames(w,2);frames(w,1,{up:true});assert(w.realmId===def.destination);frames(w,70);
+ Object.assign(w.p,{x:33,y:414,vx:0,vy:0});frames(w,2);frames(w,1,{up:true});assert(w.realmId===def.host&&!w.deaths);}
+});
+test('Fragmenty zdobywa się platformową trasą; nie odnawiają się po powrocie',()=>{
+ const w=new ZD.World();for(const def of ZDAdventures.definitions.slice(0,3)){w.enterRealm(def.destination);collect(w,w.items[0]);const count=w.fragments.length,score=w.score;w.enterRealm(def.host);w.enterRealm(def.destination);assert(w.fragments.length===count&&w.items[0].taken&&w.score===score+50);}
+ assert(w.fragments.length===3);
+});
+test('Zagadki, fragmenty, nowa komnata i finał zachowują się po zapisie',()=>{
+ const w=new ZD.World();w.enterRealm('r06');pressAt(w,2);const copy=new ZD.World();assert(copy.restore(w.snapshot()));assert(copy.puzzleState().progress===1);pressAt(copy,0);pressAt(copy,1);assert(copy.puzzleState().solved);copy.enterRealm('s03');copy.fragments=['fragment0','fragment1','fragment2'];copy.saxFound=true;copy.saxAcknowledged=true;copy.encore=true;const again=new ZD.World();assert(again.restore(copy.snapshot())&&again.realmId==='s03'&&again.encore&&again.fragments.length===3&&again.puzzles.echo.solved);
+});
+test('Wieloryb wymaga trzech fragmentów, saksofonu i zagrania na znaku; nagroda tylko raz',()=>{
+ const w=new ZD.World();w.enterRealm('s03',{x:277,y:414});frames(w,5);w.saxFound=true;w.saxAcknowledged=true;frames(w,1,{sax:true});assert(!w.encore);frames(w,1);w.playingSax=false;w.fragments=['fragment0','fragment1','fragment2'];const score=w.score;frames(w,1,{sax:true});assert(w.encore&&w.score===score+1500);frames(w,1);frames(w,1,{sax:true});frames(w,1);frames(w,1,{sax:true});assert(w.score===score+1500&&!w.won);
+});
+test('Finału nie uruchamia granie na podeście ani niepełny ekwipunek',()=>{
+ const w=new ZD.World();w.enterRealm('s03',{x:300,y:249});w.saxFound=true;w.fragments=['fragment0','fragment1','fragment2'];frames(w,5);frames(w,1,{sax:true});assert(!w.encore);const old=new ZD.World();assert(old.restore({version:3,realmId:'r00',encore:true,fragments:['bad','fragment0','fragment0'],puzzles:{echo:{progress:Infinity},orbit:{values:[-2,99,'x']}}}));assert(!old.encore&&old.fragments.length===1&&old.puzzles.orbit.values.join(',')==='0,2,0');
+});
+test('Światło: tylko właściwa droga dociera do odbiornika',()=>{let hits=0;for(let i=0;i<8;i++)hits+=Number(ZDAdventures.traceMirrors([i&1,(i>>1)&1,(i>>2)&1]).hit);assert(hits===1);const w=new ZD.World();w.enterRealm('r13');solvePuzzle(w);assert(ZDAdventures.traceMirrors(w.puzzleState().values).hit);});
+test('Waga: 2 + 5 otwiera przejście; błędna kombinacja nie karze',()=>{const w=new ZD.World();w.enterRealm('r29');pressAt(w,1);assert(!w.puzzleState().solved&&!w.deaths);pressAt(w,1);solvePuzzle(w);});
+test('Zapisy wymagają odnalezienia; obie odnogi prowadzą do artefaktów i skrótów',()=>{
+ const w=new ZD.World();for(const [entry,lock,treasury,clue,relic,host] of [['s04','s05','s06','glassScore','prism','r13'],['s07','s08','s09','tideScore','shell','r29']]){
+ w.enterRealm(lock);frames(w,65);pressAt(w,1);assert(w.puzzleState().progress===0);Object.assign(w.p,{x:554,y:414,vx:0,vy:0});frames(w,2,{right:true});assert(w.realmId===lock);
+ w.enterRealm(entry);collect(w,w.items.find(i=>i.id===clue));assert(w.journal.includes(clue));w.enterRealm(lock);solvePuzzle(w);Object.assign(w.p,{x:554,y:414,vx:0,vy:0});frames(w,65,{right:true});assert(w.realmId===treasury);
+ assert(!w.portalOpen(w.def.portal));collect(w,w.items.find(i=>i.id===relic));assert(w.relics.includes(relic)&&w.portalOpen(w.def.portal));Object.assign(w.p,{x:515,y:414,vx:0,vy:0});frames(w,65);frames(w,1,{up:true});assert(w.realmId===host&&!w.deaths);
+ }assert(w.relics.length===2);w.enterRealm('r01',{x:515,y:414});frames(w,65);frames(w,1,{up:true});assert(w.realmId==='s10');collect(w,w.items[0]);
+ const copy=new ZD.World();assert(copy.restore(w.snapshot())&&copy.relics.length===2&&copy.journal.length===2&&copy.puzzles.tideLock.solved&&copy.items[0].taken);
+});
+test('Ukryte przejście wymaga obu artefaktów; dziennik filtruje błędne dane',()=>{const w=new ZD.World();w.enterRealm('r01');assert(!w.portalOpen(w.def.portal));w.relics=['prism'];assert(!w.portalOpen(w.def.portal));const copy=new ZD.World();assert(copy.restore({version:3,realmId:'r01',journal:['glassScore','glassScore','bad'],relics:['shell','bad','shell']}));assert(copy.journal.length===1&&copy.relics.length===1&&!copy.portalOpen(copy.def.portal));});
+test('Każda z dziewięciu zagadek reaguje na naciśnięcie; rozwiązanie daje nagrodę tylko raz',()=>{
+ for(const def of ZDAdventures.definitions){const w=new ZD.World();w.enterRealm(def.host);w.notes.forEach(n=>n.taken=true);if(def.requiresClue)w.journal.push(def.requiresClue);for(const id of def.requiresPuzzles||[])w.puzzles[id]={solved:true};const score=w.score;
+ assert(!w.puzzleState().solved);if(w.def.portal&&!w.def.portal.return)assert(!w.portalOpen(w.def.portal));pressAt(w,0);assert(w.puzzleState().last===0&&w.puzzleState().flash>0&&w.events.includes('bell0'),'Brak reakcji '+def.id);
+ w.puzzles={};solvePuzzle(w);assert(w.score===score+600,'Nagroda '+def.id);if(w.def.portal)assert(w.portalOpen(w.def.portal));const copy=new ZD.World();assert(copy.restore(w.snapshot())&&copy.puzzleState().solved);pressAt(copy,2);assert(copy.puzzleState().last===2&&copy.puzzleState().flash>0&&copy.score===w.score,'Powtórna interakcja '+def.id);
+ }
+});
+test('Warsztat: zawory, zapis, zamiany płytek, nagroda i droga powrotna',()=>{
+ const w=new ZD.World();w.enterRealm('r34');solvePuzzle(w);Object.assign(w.p,{x:515,y:414,vx:0,vy:0});frames(w,65);frames(w,1,{up:true});assert(w.realmId==='s11');collect(w,w.items[0]);assert(w.journal.includes('mosaicSketch'));
+ Object.assign(w.p,{x:554,y:414,vx:0,vy:0});frames(w,65,{right:true});assert(w.realmId==='s12');pressAt(w,0);const partial=new ZD.World();assert(partial.restore(w.snapshot())&&partial.puzzleState().values.join(',')==='1,0,2');pressAt(partial,1);assert(partial.puzzleState().solved);
+ Object.assign(partial.p,{x:554,y:414,vx:0,vy:0});frames(partial,65,{right:true});assert(partial.realmId==='s13');collect(partial,partial.items[0]);Object.assign(partial.p,{x:515,y:414,vx:0,vy:0});frames(partial,65);frames(partial,1,{up:true});assert(partial.realmId==='r34'&&!partial.deaths);
+});
+test('Przytrzymanie mechanizmu nie przechwytuje drabiny',()=>{for(const def of ZDAdventures.definitions)for(let i=0;i<3;i++){const w=new ZD.World();w.enterRealm(def.host);if(def.requiresClue)w.journal.push(def.requiresClue);for(const id of def.requiresPuzzles||[])w.puzzles[id]={solved:true};Object.assign(w.p,{x:def.controls[i]-11,y:414,vx:0,vy:0});frames(w,3);frames(w,60,{up:true});assert(!w.p.climbing,'Kolizja mechanizmu z drabiną '+def.id+' '+i);}});
+test('Nuty: osobny wynik, stary zapis, brak podwójnego naliczania',()=>{const w=new ZD.World();const n=w.notes.find(n=>n.y===415);Object.assign(w.p,{x:n.x,y:414,vx:0,vy:0});frames(w,1);assert(w.noteCount===1&&w.snapshot().noteStats.points===100,'Pierwsza nuta '+w.noteCount+' / '+JSON.stringify(w.notes));w.enterRealm('r01');w.enterRealm('r00');assert(w.noteCount===1);const save=w.snapshot();delete save.noteStats;const copy=new ZD.World();assert(copy.restore(save)&&copy.noteCount===1);copy.die();assert(copy.noteCount===1&&copy.notes.some(n=>n.taken));});
+test('Połączona wyprawa wymaga źródeł zasilania i pamięta cały łańcuch',()=>{const w=new ZD.World();w.enterRealm('r41');assert(!w.portalOpen(w.def.portal));for(const id of ['lightPath','pressure','mosaic'])w.puzzles[id]={solved:true};assert(w.portalOpen(w.def.portal));w.enterRealm('s16');pressAt(w,0);assert(!w.puzzleState().solved&&w.events.includes('powerMissing'));w.enterRealm('s14');solvePuzzle(w);w.enterRealm('s15');collect(w,w.items[0]);assert(w.journal.includes('flowPlan'));w.enterRealm('s16');solvePuzzle(w);w.enterRealm('s17');solvePuzzle(w);Object.assign(w.p,{x:554,y:414,vx:0,vy:0});frames(w,65,{right:true});assert(w.realmId==='s18');collect(w,w.items[0]);const copy=new ZD.World();assert(copy.restore(w.snapshot())&&copy.puzzles.beacon.solved&&copy.items[0].taken&&copy.journal.includes('flowPlan'));});
+// Exercise each complete ground route using the real movement/jump simulation.
+for(const def of Object.values(ZD.realms))test('Trasa piesza '+def.id,()=>{
+ const w=new ZD.World();w.enterRealm(def.id,{x:40,y:414});let jump=false;
+ for(let i=0;i<2600&&w.p.x<520;i++){
+   const p=w.p,edge=p.x+p.w,ground=w.platforms.find(s=>Math.abs(s.y-p.y-p.h)<1&&edge>s.x&&p.x<s.x+s.w);
+   const obstacle=w.patrols.some(e=>e.x-edge>-6&&e.x-edge<43);
+   const wait=w.barriers.some(b=>edge>b.x-42&&edge<b.x&& (b.active||b.warning));
+   if(p.ground)jump=!!(ground&&edge>ground.x+ground.w-40)||obstacle;else if(p.vy>0)jump=false;
+   const before=[Math.round(p.x),Math.round(p.y),Math.round(p.vy),Math.round(p.vx),w.roomTime.toFixed(2),wait,w.barriers.map(b=>[b.active,b.warning])];w.step(1/120,{right:!wait,jump});
+   assert(w.deaths===0,'Porażka x,y,vy='+before+' przeciwnik='+w.patrols.map(e=>Math.round(e.x))); 
+ }
+ assert(w.p.x>=520,'Nieprzejezdna trasa');
+});
+test('Powrót przez wszystkie komnaty w lewo jest grywalny',()=>{
+ for(const def of Object.values(ZD.realms)){
+  const w=new ZD.World();w.enterRealm(def.id,{x:524,y:414});let jump=false;
+  for(let i=0;i<2600&&w.p.x>40;i++){
+   const p=w.p,ground=w.platforms.find(s=>Math.abs(s.y-p.y-p.h)<1&&p.x+p.w>s.x&&p.x<s.x+s.w);
+   const obstacle=w.patrols.some(e=>p.x-e.x-e.w>-6&&p.x-e.x-e.w<43);
+   const wait=w.barriers.some(b=>p.x<b.x+b.w+42&&p.x>b.x+b.w&&(b.active||b.warning));
+   if(p.ground)jump=!!(ground&&p.x<ground.x+40)||obstacle;else if(p.vy>0)jump=false;
+   const before=Math.round(p.x);w.step(1/120,{left:!wait,jump});assert(!w.deaths,'Powrót '+def.id+' x='+before);
+  }assert(w.p.x<=40,'Brak powrotu '+def.id);
+ }
+});
+document.getElementById('result').textContent=results.join('\n');document.title=results.some(r=>r.startsWith('FAIL'))?'FAIL':'PASS';
+</script></html>

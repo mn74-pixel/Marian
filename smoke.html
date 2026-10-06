@@ -1,0 +1,97 @@
+<!doctype html><html lang="pl"><meta charset="utf-8"><title>Smoke 0.12</title><style>body{margin:0;background:#241e33}iframe{width:100%;height:100vh;border:0}</style><pre id="result">RUNNING</pre><iframe title="Gra"></iframe><script>
+const query=new URLSearchParams(location.search),frame=document.querySelector('iframe');
+if(query.has('preview'))document.getElementById('result').style.display='none';
+if(query.has('mobile'))frame.style.width='390px';
+let preferenceReload=false;
+frame.onload=async()=>{
+ const w=frame.contentWindow,d=w.document,out=document.getElementById('result'),wait=ms=>new Promise(r=>setTimeout(r,ms));if(!w.__testWorld)return;
+ const errors=[];w.addEventListener('error',e=>errors.push(e.message));
+ const assert=(v,m)=>{if(!v)throw Error(m);};
+ const press=async(code,ms)=>{w.dispatchEvent(new w.KeyboardEvent('keydown',{code}));await wait(ms);w.dispatchEvent(new w.KeyboardEvent('keyup',{code}));};
+ try{
+  if(preferenceReload){assert(d.getElementById('sound').getAttribute('aria-pressed')==='false','Wyciszenie po odświeżeniu');out.textContent='PASS: audio na starcie, sygnał testowy, wyciszenie i zachowanie wyboru po odświeżeniu';document.title='PASS';return;}
+  d.getElementById('restart').click();await wait(250);const world=w.__testWorld;
+  assert(d.getElementById('overlay').hidden,'Start');assert(d.getElementById('sound').getAttribute('aria-pressed')==='true'&&w.__toneStarts>=2,'Dźwięk na starcie');d.getElementById('sound').click();assert(w.localStorage.getItem('zlotodzwiek-sound')==='off','Zapis wyciszenia');d.getElementById('sound').click();await wait(100);assert(w.localStorage.getItem('zlotodzwiek-sound')==='on','Włączenie audio');if(query.has('preference')){d.getElementById('sound').click();preferenceReload=true;frame.srcdoc=frame.srcdoc.replace('localStorage.removeItem("zlotodzwiek-sound");','');return;}assert(d.documentElement.scrollWidth<=w.innerWidth,'Przepełnienie układu');
+  await press('KeyD',650);await wait(180);await press('ArrowUp',350);assert(world.p.climbing,'Wspinanie');const y=world.p.y;await wait(150);assert(world.p.y===y,'Postój na drabinie');await press('ArrowDown',500);
+  d.getElementById('map-button').click();const time=world.time;await wait(250);assert(!d.getElementById('map-panel').hidden&&world.time===time,'Mapa nie pauzuje');d.getElementById('map-close').click();
+  world.enterRealm('r02',{x:430,y:244});await wait(200);await press('ArrowUp',80);await wait(100);
+  assert(world.saxFound&&!d.getElementById('discovery').hidden,'Brak ekranu zdobycia');assert(d.getElementById('discovery-title').textContent==='Znalazłeś saksofon!','Zły komunikat');
+  const frozen=world.time;await press('KeyD',350);await wait(1800);assert(world.time===frozen&&!d.getElementById('discovery').hidden,'Potwierdzenie znika samo');
+  assert(JSON.parse(w.localStorage.getItem('zlotodzwiek-v07')).saxFound,'Znalezisko nie jest zapisane');
+  if(query.has('discovery')){out.textContent='PASS: ekran zdobycia, zatrzymanie, trwały zapis';document.title='PASS';return;}
+  d.getElementById('discovery-ok').click();await wait(120);assert(world.saxAcknowledged&&d.getElementById('inventory').textContent.includes('ZDOBYTY'),'Brak potwierdzenia w ekwipunku');
+  await press('KeyJ',100);assert(world.playingSax,'Animacja gry');await press('KeyD',50);assert(!world.playingSax,'Ruch nie chowa');
+  const bytes=new ArrayBuffer(32044),v=new DataView(bytes),str=(o,s)=>[...s].forEach((c,i)=>v.setUint8(o+i,c.charCodeAt(0)));
+  str(0,'RIFF');v.setUint32(4,32036,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,8000,true);v.setUint32(28,16000,true);v.setUint16(32,2,true);v.setUint16(34,16,true);str(36,'data');v.setUint32(40,32000,true);
+  const transfer=new w.DataTransfer();transfer.items.add(new w.File([bytes],'test-silence.wav',{type:'audio/wav'}));const file=d.getElementById('sax-file');file.files=transfer.files;file.dispatchEvent(new w.Event('change'));await wait(400);
+  assert(d.getElementById('audio-status').textContent.includes('gotowe'),'Dekodowanie WAV');await wait(300);await press('KeyJ',100);assert(world.playingSax&&w.__saxStarts>0,'Odtwarzanie WAV');await press('KeyD',80);assert(!world.playingSax&&w.__saxStops>0,'Zatrzymanie audio');
+  world.enterRealm('r00',{x:540,y:414});await wait(450);await press('KeyD',400);assert(world.realmId==='r01','Boczne przejście');
+  d.getElementById('pause').click();assert(d.getElementById('pause').textContent==='Wznów','Pauza');d.getElementById('pause').click();
+  if(query.has('adventure')){
+    // Interact using the same keyboard action as the player; engine tests cover the full climbing routes.
+    if(d.getElementById('sound').getAttribute('aria-pressed')==='true')d.getElementById('sound').click();
+    for(const def of w.ZDAdventures.definitions.slice(0,3)){
+      world.enterRealm(def.host);await wait(100);assert(!d.getElementById('puzzle-help').hidden,'Brak wskazówki');
+      for(const i of def.type==='sequence'?def.target:def.type==='dials'?[0,0,1,1]:[0,2]){
+        Object.assign(world.p,{x:def.controls[i]-11,y:414,vx:0,vy:0,climbing:false,ladder:null});await wait(80);await press('ArrowUp',50);await wait(50);
+      }
+      assert(world.puzzleState().solved&&d.getElementById('puzzle-state').textContent.includes('Rozwiązane'),'Zagadka '+def.id);
+      assert(JSON.parse(w.localStorage.getItem('zlotodzwiek-v07')).puzzles[def.id].solved,'Zapis zagadki');
+      Object.assign(world.p,{x:515,y:414,vx:0,vy:0});await wait(100);await press('ArrowUp',50);await wait(100);assert(world.realmId===def.destination,'Portal '+def.id);
+      const item=world.items[0];Object.assign(world.p,{x:item.x,y:item.y-6,vx:0,vy:0});await wait(200);assert(world.fragments.includes(item.id),'Fragment '+def.id);
+    }
+    Object.assign(world.p,{x:277,y:414,vx:0,vy:0});await wait(150);await press('KeyJ',60);await wait(100);assert(world.encore&&d.getElementById('fragments').textContent.includes('obudzony'),'Przebudzenie wieloryba');
+    const saved=JSON.parse(w.localStorage.getItem('zlotodzwiek-v07'));assert(saved.encore&&saved.fragments.length===3,'Trwały finał');
+    d.getElementById('map-button').click();await wait(100);assert(d.getElementById('map-canvas').getAttribute('aria-label').includes('66'),'Mapa sekretów');d.getElementById('map-close').click();
+    if(query.has('music')){
+      const before=w.__toneStarts;d.getElementById('sound').click();world.enterRealm('s02');await wait(200);assert(w.__toneStarts>before,'Motyw muzyczny komnaty');
+      d.getElementById('pause').click();assert(d.getElementById('pause').textContent==='Wznów','Pauza motywu');d.getElementById('pause').click();d.getElementById('sound').click();const muted=w.__toneStarts;world.enterRealm('s03');await wait(200);assert(w.__toneStarts===muted,'Wyciszona komnata generuje dźwięk');
+      world.won=true;world.emit('win');await wait(100);assert(d.getElementById('explore-again'),'Brak powrotu do eksploracji');d.getElementById('explore-again').click();await wait(100);assert(!world.won&&d.getElementById('overlay').hidden,'Powrót do eksploracji');
+      Object.assign(world.p,{x:277,y:414,vx:0,vy:0});await wait(100);
+    }
+    if(query.has('clue')){world.enterRealm('r22');await wait(100);}
+    assert(d.documentElement.scrollWidth<=w.innerWidth,'Przepełnienie wskazówek');
+  }
+  if(query.has('expedition')){
+    const solve=async()=>{const def=world.def.puzzle;for(const i of def.type==='mirrors'?[0,1,2]:def.type==='weights'?[0,2]:def.target){Object.assign(world.p,{x:def.controls[i]-11,y:414,vx:0,vy:0,climbing:false,ladder:null});await wait(90);await press('ArrowUp',50);await wait(50);}assert(world.puzzleState().solved,'Zagadka '+def.id);};
+    const pickup=async id=>{const item=world.items.find(i=>i.id===id);Object.assign(world.p,{x:item.x,y:item.y-6,vx:0,vy:0});await wait(200);assert(item.taken,'Przedmiot '+id);};
+    for(const [host,entry,lock,treasury,clue,relic] of [['r13','s04','s05','s06','glassScore','prism'],['r29','s07','s08','s09','tideScore','shell']]){
+      world.enterRealm(host);await wait(500);assert(!d.getElementById('puzzle-board').hidden,'Schemat mechanizmu');await solve();Object.assign(world.p,{x:515,y:414,vx:0,vy:0});await wait(100);await press('ArrowUp',60);assert(world.realmId===entry,'Wejście');await pickup(clue);assert(d.getElementById('journal-entries').textContent.includes(w.ZDAdventures.clues[clue].title),'Dziennik');
+      Object.assign(world.p,{x:554,y:414,vx:0,vy:0});await wait(500);await press('KeyD',80);assert(world.realmId===lock,'Odno ga');await solve();Object.assign(world.p,{x:554,y:414,vx:0,vy:0});await wait(500);await press('KeyD',80);assert(world.realmId===treasury,'Skarbiec');await pickup(relic);Object.assign(world.p,{x:515,y:414,vx:0,vy:0});await wait(500);await press('ArrowUp',60);assert(world.realmId===host,'Skrót');
+    }
+    world.enterRealm('r01',{x:515,y:414});await wait(500);await press('ArrowUp',60);assert(world.realmId==='s10','Sekret obu artefaktów');await pickup('lastTicket');assert(JSON.parse(w.localStorage.getItem('zlotodzwiek-v07')).relics.length===2,'Zapis artefaktów');
+    d.getElementById('map-button').click();await wait(100);assert(d.getElementById('map-canvas').getAttribute('aria-label').includes('66'),'Mapa');d.getElementById('map-close').click();
+    if(query.has('clue')){world.enterRealm('r13');await wait(100);}
+    assert(d.documentElement.scrollWidth<=w.innerWidth,'Układ mobilny');
+  }
+  if(query.has('clockwork')){
+    world.enterRealm('r34');await wait(500);for(const i of [0,0,1,2,2,2]){Object.assign(world.p,{x:world.def.puzzle.controls[i]-11,y:414,vx:0,vy:0});await wait(80);await press('ArrowUp',50);await wait(50);}assert(world.puzzleState().solved,'Manometry');
+    Object.assign(world.p,{x:515,y:414,vx:0,vy:0});await wait(100);await press('ArrowUp',60);assert(world.realmId==='s11','Warsztat');const clue=world.items[0];Object.assign(world.p,{x:clue.x,y:clue.y-6,vx:0,vy:0});await wait(500);assert(world.journal.includes('mosaicSketch'),'Rysunek');
+    Object.assign(world.p,{x:554,y:414,vx:0,vy:0});await wait(100);await press('KeyD',80);assert(world.realmId==='s12','Mozaika');for(const i of [0,1]){Object.assign(world.p,{x:world.def.puzzle.controls[i]-11,y:414,vx:0,vy:0});await wait(80);await press('ArrowUp',50);await wait(50);}assert(world.puzzleState().solved,'Ułożenie piór');Object.assign(world.p,{x:554,y:414,vx:0,vy:0});await wait(500);await press('KeyD',80);assert(world.realmId==='s13','Ukryty ogród');const reward=world.items[0];Object.assign(world.p,{x:reward.x,y:reward.y-6,vx:0,vy:0});await wait(200);assert(reward.taken,'Złote pióro');
+    assert(JSON.parse(w.localStorage.getItem('zlotodzwiek-v07')).puzzles.mosaic.solved,'Zapis warsztatu');
+  }
+  if(query.has('linked')){
+    const solve=async()=>{const def=world.def.puzzle;const indices=def.type==='valves'?def.target.flatMap((v,i)=>Array(v).fill(i)):def.type==='mirrors'?[0,1,2]:[0,2];for(const i of indices){Object.assign(world.p,{x:def.controls[i]-11,y:414,vx:0,vy:0,climbing:false,ladder:null});await wait(70);await press('ArrowUp',40);await wait(40);}assert(world.puzzleState().solved,'Łańcuch '+def.id);};
+    world.enterRealm('r41',{x:515,y:414});await wait(500);assert(world.portalOpen(world.def.portal),'Zasilanie portalu');await press('ArrowUp',60);assert(world.realmId==='s14','Wejście do poziomu');await solve();
+    for(const id of ['s15','s16','s17','s18']){Object.assign(world.p,{x:554,y:414,vx:0,vy:0});await wait(500);await press('KeyD',80);assert(world.realmId===id,'Pokój '+id);if(id==='s15'){const item=world.items[0];Object.assign(world.p,{x:item.x,y:item.y-6,vx:0,vy:0});await wait(200);assert(world.journal.includes('flowPlan'),'Plan instalacji');}if(world.def.puzzle)await solve();}
+    const reward=world.items[0];Object.assign(world.p,{x:reward.x,y:reward.y-6,vx:0,vy:0});await wait(200);assert(reward.taken,'Skarbiec');const saved=JSON.parse(w.localStorage.getItem('zlotodzwiek-v07'));assert(saved.puzzles.beacon.solved&&saved.noteStats.collected===world.noteCount,'Zapis i nuty');assert(d.getElementById('objectives').textContent.includes('✓ Zapal latarnię'),'Lista celów');
+  }
+  if(query.has('feedback')){
+    const cv=d.createElement('canvas');cv.width=960;cv.height=540;const c=cv.getContext('2d');
+    for(const def of w.ZDAdventures.definitions){const testWorld=new w.ZD.World();testWorld.enterRealm(def.host);testWorld.journal=def.requiresClue?[def.requiresClue]:[];testWorld.time=2;for(const id of def.requiresPuzzles||[])testWorld.puzzles[id]={solved:true};
+      const draw=()=>{c.clearRect(0,0,960,540);w.ZDAdventureArt.mechanisms(c,testWorld,2);return cv.toDataURL();};const before=draw();testWorld.pressPuzzle(0);assert(draw()!==before,'Brak wizualnej reakcji '+def.id);
+      testWorld.puzzles={};for(const id of def.requiresPuzzles||[])testWorld.puzzles[id]={solved:true};for(const i of def.type==='sequence'?def.target:def.type==='dials'?[0,0,1,1]:def.type==='mirrors'?[0,1,2]:def.type==='valves'?def.target.flatMap((v,i)=>Array(v).fill(i)):def.type==='tiles'?[0,1]:[0,2])testWorld.pressPuzzle(i);testWorld.puzzleState().flash=0;assert(testWorld.puzzleState().solved&&draw()!==before,'Brak trwałego oznaczenia '+def.id);
+      if(def.type==='sequence'){testWorld.puzzles={};testWorld.pressPuzzle(def.target[0]);testWorld.puzzleState().flash=0;assert(draw()!==before,'Niewidoczna sekwencja '+def.id);}
+    }
+  }
+  if(query.has('map'))d.getElementById('map-button').click();
+  assert(errors.length===0,errors.join('; '));out.textContent='PASS: start, drabiny, mapa, zdobycie, ekwipunek, audio WAV, przejście, pauza; '+(query.has('adventure')?'3 zagadki bez audio, portale, fragmenty, finał, zapis i mapa 66 komnat; ':'')+(query.has('music')?'motyw komnaty, wyciszenie i powrót po zakończeniu; ':'')+(query.has('expedition')?'4 nowe zagadki, dziennik, artefakty, skróty i końcowy sekret; ':'')+(query.has('feedback')?'reakcja graficzna i trwały wynik wszystkich 12 zagadek; ':'')+(query.has('clockwork')?'warsztat, manometry, mozaika, ogród, nagroda i zapis; ':'')+(query.has('linked')?'połączone instalacje, cele i licznik nut; ':'')+'brak błędów JS';document.title='PASS';
+ }catch(e){out.textContent='FAIL: '+e.message;document.title='FAIL';}
+};
+fetch('index.html').then(r=>r.text()).then(html=>{
+ const harness='<script>window.requestAnimationFrame=cb=>setTimeout(()=>cb(performance.now()),16);<\/script>';
+ const inspect='<script>window.__toneStarts=0;const toneStart=OscillatorNode.prototype.start;OscillatorNode.prototype.start=function(...a){window.__toneStarts++;return toneStart.apply(this,a)};window.__saxStarts=0;window.__saxStops=0;const os=AudioBufferSourceNode.prototype.start,ot=AudioBufferSourceNode.prototype.stop;AudioBufferSourceNode.prototype.start=function(...a){window.__saxStarts++;return os.apply(this,a)};AudioBufferSourceNode.prototype.stop=function(...a){window.__saxStops++;return ot.apply(this,a)};const OriginalWorld=ZD.World;ZD.World=class extends OriginalWorld{constructor(){super();window.__testWorld=this;}};<\/script>';
+ const prefs='<script>localStorage.removeItem("zlotodzwiek-sound");<\/script>';
+ frame.srcdoc=html.replace('<head>','<head>'+harness).replace('<script src="game.js?v=18">',inspect+prefs+'<script src="game.js?v=18">');
+});
+</script></html>
