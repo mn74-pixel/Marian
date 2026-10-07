@@ -25,6 +25,7 @@
   }
   function background(c,world,t){
     const kind=world.def.wonder;
+    if(['locks','archive','foundry','clockgarden'].includes(kind)){ZDMechanismArt.background(c,world,t);return;}
     if(['glass','aurora','tide','reef','train','workshop','aviary','prism'].includes(kind)){ZDExpeditionArt.background(c,world,t);return;}
     c.save();c.fillStyle=grad(c,0,0,0,540,kind==='bloom'?'#143854':'#101a3c',kind==='bloom'?'#33776c':kind==='orbit'?'#4b365f':'#224564');c.fillRect(0,0,960,540);
     for(let i=0;i<70;i++){const x=(i*137+31)%960,y=(i*79+47)%470;const a=.25+(Math.sin(t*.7+i)+1)*.15;c.globalAlpha=a;star(c,x,y,i%7?1:2.5,'#cceddf');}c.globalAlpha=1;
@@ -53,7 +54,8 @@
   }
   function mechanisms(c,world,t){
     c.save();const def=world.def.puzzle;
-    if(def){const state=world.puzzleState();
+    if(def&&['interlock','towers'].includes(def.type))ZDMechanismArt.draw(c,world);
+    if(def&&!['interlock','towers'].includes(def.type)){const state=world.puzzleState();
       for(let i=0;i<3;i++){
         const x=def.controls[i],pressed=state.last===i&&state.flash>0,lit=state.solved||pressed,color=ZDAdventures.colors[i];
         if(pressed){ellipse(c,x,410,25,29,'#ffffff18','#fff2bd');}

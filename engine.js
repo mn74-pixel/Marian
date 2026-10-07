@@ -49,7 +49,7 @@
       this.relics=Object.keys(ZDAdventures.relics||{}).filter(k=>Array.isArray(data.relics)&&data.relics.includes(k));
       for(const def of (window.ZDAdventures?.definitions||[])){
         const v=data.puzzles?.[def.id];if(!v||typeof v!=='object')continue;
-        this.puzzles[def.id]={solved:v.solved===true,progress:Math.floor(bounded(v.progress,def.type==='sequence'?def.target.length:0)),values:[0,1,2].map(i=>Math.floor(bounded(v.values?.[i],def.type==='valves'?3:['dials','tiles'].includes(def.type)?2:1))),last:-1,flash:0};
+        this.puzzles[def.id]={solved:v.solved===true,progress:Math.floor(bounded(v.progress,def.type==='sequence'?def.target.length:0)),values:[0,1,2].map(i=>Math.floor(bounded(v.values?.[i],def.type==='valves'?3:['dials','tiles','towers'].includes(def.type)?2:1))),last:-1,flash:0,moves:Math.floor(bounded(v.moves))};
         if(this.puzzles[def.id].solved){this.puzzles[def.id].progress=def.target.length;this.puzzles[def.id].values=[...def.target];}
       }
       this.encore=!!data.encore&&this.fragments.length===3&&this.saxFound;
@@ -74,7 +74,7 @@
     notice(type){if(this.noticeCooldown<=0){this.emit(type);this.noticeCooldown=2;}}
     puzzleState(def=this.def.puzzle){
       if(!def)return null;
-      return this.puzzles[def.id]||(this.puzzles[def.id]={solved:false,progress:0,values:[...(def.initial||[0,0,0])],last:-1,flash:0});
+      return this.puzzles[def.id]||(this.puzzles[def.id]={solved:false,progress:0,values:[...(def.initial||[0,0,0])],last:-1,flash:0,moves:0});
     }
     pressPuzzle(index){
       const def=this.def.puzzle;if(!def||!Number.isInteger(index)||index<0||index>2)return;
@@ -87,6 +87,10 @@
         if(index===def.target[state.progress])state.progress++;
         else{state.progress=index===def.target[0]?1:0;this.emit('puzzleRetry');}
         state.solved=state.progress===def.target.length;
+      }else if(def.type==='interlock'){
+        const dep=def.dependencies[index];if(dep&&state.values[dep[0]]!==dep[1]){state.blocked=true;this.emit('boltBlocked');return;}state.blocked=false;state.values[index]=1-state.values[index];state.solved=state.values.every((v,i)=>v===def.target[i]);
+      }else if(def.type==='towers'){
+        const next=ZDAdventures.transferDiscs(state.values,index);if(next.some((v,i)=>v!==state.values[i]))state.moves=(state.moves||0)+1;state.values=next;state.solved=state.values.every((v,i)=>v===def.target[i]);
       }else if(def.type==='filters'){
         state.values[index]=1-state.values[index];state.solved=state.values.every((v,i)=>v===def.target[i]);
       }else if(def.type==='valves'){

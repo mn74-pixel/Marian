@@ -1,10 +1,34 @@
-# Złotodźwięk — prototyp 0.19
+# Złotodźwięk — prototyp 0.20
 
-Gra platformowo-przygodowa HTML5 Canvas. 48 komnat na sześciu piętrach i dwadzieścia trzy
-ukryte komnaty (łącznie 71),
+Gra platformowo-przygodowa HTML5 Canvas. 48 komnat na sześciu piętrach i dwadzieścia siedem
+ukrytych komnat (łącznie 75),
 z drogami powrotnymi i bocznymi znaleziskami. Pomieszczenia nie mają nazw ani
 plansz tytułowych. Cała komnata mieści się na szerokość ekranu; Marian zachowuje
 zbliżenie z poprzedniej wersji. Sześć odmian otoczenia rozróżnia miejsca wizualnie.
+
+## Mechaniczne zamki i zegarowy ogród 0.20
+
+Cztery nowe komnaty s24–s27 tworzą dalszą odnogę od kryształowego skarbca.
+Wymagają rozwiązania słonecznego szkła. Pierwszy mechanizm ma trzy zależne
+rygle: 1 wymaga 2, 2 wymaga 3. Dźwignia zablokowana przez zależność pokazuje
+reakcję i komunikat; nie zmienia stanu i nie zabiera punktów.
+
+Plan znaleziony na trzecim podeście następnego pokoju wyjaśnia przekładnię
+krążków. Trzy dźwignie łączą pary słupków i przenoszą mniejszy z górnych
+krążków. Wszystkie trzy muszą znaleźć się po prawej. Minimalne rozwiązanie
+ma 7 ruchów: L↔P, L↔Ś, Ś↔P, L↔P, L↔Ś, Ś↔P, L↔P. Licznik ruchów i częściowy
+stan zapisują się automatycznie. Ruchy nie mają kary ani limitu czasu.
+
+Nowa grafika `mechanism-art.js` pokazuje stan rygli i krążków w komnacie,
+ruchome tłoki, ścienne rysunki oraz obracający się zegarowy kwiat. Komnaty mają
+krótkie liny, trzystopniową trasę po plan i niezależne podesty końcowego ogrodu.
+Ostatni pokój mieści skarb i skrót do kryształowej odnogi.
+
+Łącznie 75 komnat, 27 tajnych pokoi i 16 zagadek. 119 testów logiki przeszło,
+w tym minimalna liczba ruchów, zależności rygli, zapis częściowego rozwiązania,
+wszystkie stałe podesty, przedmioty i drogi powrotne. Test Chrome
+`?adventure&expedition&clockwork&linked&prism&mechanism&feedback` sprawdza
+wszystkie wyprawy i reakcje graficzne mechanizmów. Stare zapisy pozostają zgodne.
 
 ## Kryształowy ogród 0.19
 
@@ -108,7 +132,7 @@ manometry z poruszanymi wskazówkami i ptaka z ruchomymi skrzydłami oraz zegare
 przytrzymanie mechanizmów w pobliżu drabin, zapis częściowo ułożonej mozaiki
 oraz kompletną trasę nowej wyprawy. `smoke.html?clockwork&feedback` sprawdza
 warsztat w Chrome i wizualną reakcję wszystkich dziewięciu zagadek.
-Podgląd: http://127.0.0.1:8081/?v=0.19. Dotychczasowy zapis pozostaje zgodny.
+Podgląd: http://127.0.0.1:8081/?v=0.20. Dotychczasowy zapis pozostaje zgodny.
 
 ## Czytelność zagadek 0.13
 
@@ -138,7 +162,7 @@ starsze zapisy wersji 3 pozostają zgodne. Nowe wyprawy są bez presji czasu.
 Test Chrome `smoke.html?expedition` sprawdza obie wyprawy, dziennik, skróty,
 zapis oraz bonusowe przejście. Sprawdzono wariant desktopowy z wcześniejszymi
 zagadkami i audio oraz mobilny przy 390 px. Przegląd grafiki renderuje 58 komnat.
-W tej sesji podgląd działa na http://127.0.0.1:8081/?v=0.19.
+W tej sesji podgląd działa na http://127.0.0.1:8081/?v=0.20.
 
 ## Przygoda muzyczna 0.11
 
@@ -221,7 +245,7 @@ cd /Users/nowakowski/Zlotodzwiek
 python3 -m http.server 8080 --bind 127.0.0.1
 ```
 
-Otwórz http://localhost:8080/?v=0.19. Do prób na telefonie w tej samej sieci
+Otwórz http://localhost:8080/?v=0.20. Do prób na telefonie w tej samej sieci
 serwer należy uruchomić z `--bind 0.0.0.0`, a na telefonie podać adres IP komputera.
 
 ## Eksploracja
