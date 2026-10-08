@@ -103,6 +103,6 @@ fetch('index.html').then(r=>r.text()).then(html=>{
  const harness='<script>window.requestAnimationFrame=cb=>setTimeout(()=>cb(performance.now()),16);<\/script>';
  const inspect='<script>window.__toneStarts=0;const toneStart=OscillatorNode.prototype.start;OscillatorNode.prototype.start=function(...a){window.__toneStarts++;return toneStart.apply(this,a)};window.__saxStarts=0;window.__saxStops=0;const os=AudioBufferSourceNode.prototype.start,ot=AudioBufferSourceNode.prototype.stop;AudioBufferSourceNode.prototype.start=function(...a){window.__saxStarts++;return os.apply(this,a)};AudioBufferSourceNode.prototype.stop=function(...a){window.__saxStops++;return ot.apply(this,a)};const OriginalWorld=ZD.World;ZD.World=class extends OriginalWorld{constructor(){super();window.__testWorld=this;}};<\/script>';
  const prefs='<script>localStorage.removeItem("zlotodzwiek-sound");<\/script>';
- frame.srcdoc=html.replace('<head>','<head>'+harness).replace('<script src="game.js?v=20">',inspect+prefs+'<script src="game.js?v=20">');
+ frame.srcdoc=html.replace('<head>','<head>'+harness).replace('<script src="game.js?v=21">',inspect+prefs+'<script src="game.js?v=21">');
 });
 </script></html>

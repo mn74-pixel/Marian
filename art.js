@@ -84,8 +84,8 @@
   function render(ctx,world,particles,{reducedMotion=false}={}){
     ctx.setTransform(ctx.canvas.width/960,0,0,ctx.canvas.height/540,0,0);
     const {box,line,poly,label,glow}=painter(ctx),p=world.p,t=reducedMotion?0:world.time;
-    if(world.def.secret)ZDAdventureArt.background(ctx,world,t);else ZDScenery.background(ctx,world.def.theme,world.def.index,t);
-    ZDEnvironmentDetails.background(ctx,world,t);
+    if(world.def.secret)ZDAdventureArt.background(ctx,world,t);else if(world.def.look)ZDWorldScenery.background(ctx,world,t);else ZDScenery.background(ctx,world.def.theme,world.def.index,t);
+    if(!world.def.look&&!world.def.backdrop)ZDEnvironmentDetails.background(ctx,world,t);
     ZDMaterialDetail.background(ctx,world,t);
     // A room fits horizontally without shrinking Marian. The camera only follows shaft descent.
     const cameraTop=Math.max(150,p.y-245);

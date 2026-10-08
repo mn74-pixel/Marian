@@ -1,10 +1,26 @@
-# Złotodźwięk — prototyp 0.20
+# Złotodźwięk — prototyp 0.21
 
 Gra platformowo-przygodowa HTML5 Canvas. 48 komnat na sześciu piętrach i dwadzieścia siedem
 ukrytych komnat (łącznie 75),
 z drogami powrotnymi i bocznymi znaleziskami. Pomieszczenia nie mają nazw ani
 plansz tytułowych. Cała komnata mieści się na szerokość ekranu; Marian zachowuje
-zbliżenie z poprzedniej wersji. Sześć odmian otoczenia rozróżnia miejsca wizualnie.
+zbliżenie z poprzedniej wersji. Dwanaście odmiennych scenerii rozróżnia miejsca wizualnie.
+Aktualny podgląd lokalny: http://127.0.0.1:8081/?v=0.21.
+
+## Architektura świata 0.21
+
+Wszystkie 48 komnat głównej mapy otrzymały jeden z dwunastu odrębnych typów tła:
+zbiorniki, dachy miasta, obserwatorium, las, bocznicę kolejową, archiwum, kuźnię,
+akwarium, ruiny, scenę teatralną, lodową grotę i hangar. Sąsiednie komnaty nie
+powtarzają tego samego typu. Scenerie mają inne sylwetki, materiały i szczegóły,
+a nie tylko odmienne kolory. 23 tajne komnaty otrzymały tła dopasowane do wyprawy;
+cztery zachowały wyjątkowe dekoracje związane z zagadkami.
+
+Rysowanie statycznych warstw jest buforowane w `world-scenery.js`. Ciche animacje
+powietrza, wody i śniegu pozostają wyłącznie w tle, aby platformy, pułapki oraz
+przedmioty były czytelne. Przegląd `visual-review.html` pokazuje dwanaście
+reprezentatywnych komnat i renderuje komplet 75.
+Wersja 0.21 przechodzi 120 testów logiki oraz pełne ścieżki Chrome na PC i telefonie.
 
 ## Mechaniczne zamki i zegarowy ogród 0.20
 
